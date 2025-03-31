@@ -37,8 +37,7 @@ void send_ping(int sockfd, struct sockaddr_in *addr, pid_t pid) {
     packet.icmp_code = 0;
     packet.icmp_id = pid;
     
-    srand(time(NULL));
-    for (int i = 0; i < PACKET_SIZE - sizeof(struct icmp); i++)
+    for (int i = 0; i < sizeof(packet.icmp_data); i++)
         ((char *)&packet.icmp_data)[i] = 'A' + (rand() % 26);
     
     for (int i = 1; i <= 4; i++) {
@@ -46,8 +45,10 @@ void send_ping(int sockfd, struct sockaddr_in *addr, pid_t pid) {
         packet.icmp_cksum = 0;
         packet.icmp_cksum = checksum(&packet, sizeof(packet));
         
-        if (sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *)addr, sizeof(*addr)) < 0)
-            perror("sendto");
+        if (sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *)addr, sizeof(*addr)) < 0) {
+            perror("Error sending packet");
+            return;
+        }
         
         sleep(1);
     }
@@ -79,7 +80,7 @@ void recv_ping(int sockfd) {
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        fprintf(stderr, "Użycie: %s <adres IP lub nazwa domenowa>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <IP address or hostname>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     
@@ -90,13 +91,14 @@ int main(int argc, char *argv[]) {
     
     sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sockfd < 0) {
-        perror("socket");
+        perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
     
     int ttl = 64;
     if (setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0) {
-        perror("setsockopt");
+        perror("Setting socket options failed");
+        close(sockfd);
         exit(EXIT_FAILURE);
     }
     
@@ -104,14 +106,18 @@ int main(int argc, char *argv[]) {
     addr.sin_family = AF_INET;
     
     if ((host = gethostbyname(argv[1])) == NULL) {
-        perror("gethostbyname");
+        perror("Hostname resolution failed");
+        close(sockfd);
         exit(EXIT_FAILURE);
     }
     memcpy(&addr.sin_addr, host->h_addr, host->h_length);
     
+    srand(time(NULL));
+    
     pid = fork();
     if (pid < 0) {
-        perror("fork");
+        perror("Fork failed");
+        close(sockfd);
         exit(EXIT_FAILURE);
     }
     

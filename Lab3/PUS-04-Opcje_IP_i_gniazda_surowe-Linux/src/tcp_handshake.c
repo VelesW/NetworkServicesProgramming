@@ -10,8 +10,9 @@
 #include <time.h>
 
 #define PSEUDO_HEADER_SIZE 12
+#define SOURCE_ADDRESS "192.168.1.100" // Change to the correct source address
 
-// Struktura pseudo-nagłówka dla sumy kontrolnej TCP
+// Structure for the pseudo-header used for TCP checksum calculation
 struct pseudo_header {
     uint32_t source_address;
     uint32_t dest_address;
@@ -20,11 +21,12 @@ struct pseudo_header {
     uint16_t tcp_length;
 };
 
-// Obliczanie sumy kontrolnej
+// Function to calculate the checksum
 unsigned short checksum(void *b, int len) {
     unsigned short *buf = b;
     unsigned int sum = 0;
     unsigned short result;
+
     for (sum = 0; len > 1; len -= 2)
         sum += *buf++;
     if (len == 1)
@@ -35,7 +37,7 @@ unsigned short checksum(void *b, int len) {
     return result;
 }
 
-// Tworzenie i wysyłanie pakietu TCP
+// Function to create and send a TCP packet
 void send_tcp_packet(int sockfd, struct sockaddr_in *target, uint16_t src_port, uint16_t dst_port, uint32_t seq, uint32_t ack, uint8_t flags) {
     char packet[sizeof(struct ip) + sizeof(struct tcphdr)];
     memset(packet, 0, sizeof(packet));
@@ -43,6 +45,7 @@ void send_tcp_packet(int sockfd, struct sockaddr_in *target, uint16_t src_port, 
     struct ip *iph = (struct ip *)packet;
     struct tcphdr *tcph = (struct tcphdr *)(packet + sizeof(struct ip));
 
+    // Fill in the IP header
     iph->ip_hl = 5;
     iph->ip_v = 4;
     iph->ip_tos = 0;
@@ -51,21 +54,22 @@ void send_tcp_packet(int sockfd, struct sockaddr_in *target, uint16_t src_port, 
     iph->ip_off = 0;
     iph->ip_ttl = 64;
     iph->ip_p = IPPROTO_TCP;
-    iph->ip_sum = 0;
-    iph->ip_src.s_addr = inet_addr("192.168.1.100"); // Zmień na właściwy adres źródłowy
+    iph->ip_sum = 0; // Checksum will be calculated later
+    iph->ip_src.s_addr = inet_addr(SOURCE_ADDRESS); // Change to the correct source address
     iph->ip_dst = target->sin_addr;
 
+    // Fill in the TCP header
     tcph->th_sport = htons(src_port);
     tcph->th_dport = htons(dst_port);
     tcph->th_seq = htonl(seq);
     tcph->th_ack = htonl(ack);
-    tcph->th_off = 5;
+    tcph->th_off = 5; // TCP header size
     tcph->th_flags = flags;
-    tcph->th_win = htons(65535);
-    tcph->th_sum = 0;
+    tcph->th_win = htons(65535); // Maximum window size
+    tcph->th_sum = 0; // Checksum will be calculated later
     tcph->th_urp = 0;
 
-    // Tworzenie pseudo-nagłówka
+    // Create the pseudo-header for checksum calculation
     struct pseudo_header psh;
     psh.source_address = iph->ip_src.s_addr;
     psh.dest_address = iph->ip_dst.s_addr;
@@ -73,12 +77,13 @@ void send_tcp_packet(int sockfd, struct sockaddr_in *target, uint16_t src_port, 
     psh.protocol = IPPROTO_TCP;
     psh.tcp_length = htons(sizeof(struct tcphdr));
 
+    // Calculate the TCP checksum
     char pseudo_packet[PSEUDO_HEADER_SIZE + sizeof(struct tcphdr)];
     memcpy(pseudo_packet, &psh, PSEUDO_HEADER_SIZE);
     memcpy(pseudo_packet + PSEUDO_HEADER_SIZE, tcph, sizeof(struct tcphdr));
     tcph->th_sum = checksum(pseudo_packet, PSEUDO_HEADER_SIZE + sizeof(struct tcphdr));
 
-    // Wysłanie pakietu
+    // Send the packet
     if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr *)target, sizeof(*target)) < 0) {
         perror("sendto");
     }
@@ -86,13 +91,13 @@ void send_tcp_packet(int sockfd, struct sockaddr_in *target, uint16_t src_port, 
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        printf("Użycie: %s <IP> <port>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <IP> <port>\n", argv[0]);
         return 1;
     }
 
     char *target_ip = argv[1];
     uint16_t target_port = atoi(argv[2]);
-    srand(time(NULL));
+    srand(time(NULL)); // Initialize random seed
     uint16_t source_port = rand() % 65535;
 
     int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
@@ -109,21 +114,21 @@ int main(int argc, char *argv[]) {
 
     uint32_t seq = rand();
 
-    // 1. Wysłanie SYN
+    // 1. Send SYN
     send_tcp_packet(sockfd, &target, source_port, target_port, seq, 0, TH_SYN);
-    printf("Wysłano SYN do %s:%d\n", target_ip, target_port);
+    printf("Sent SYN to %s:%d\n", target_ip, target_port);
     
     sleep(1);
 
-    // 2. Wysłanie ACK (zakładamy, że SYN-ACK został odebrany)
+    // 2. Send ACK (assuming SYN-ACK was received)
     send_tcp_packet(sockfd, &target, source_port, target_port, seq + 1, seq + 1, TH_ACK);
-    printf("Wysłano ACK do %s:%d\n", target_ip, target_port);
+    printf("Sent ACK to %s:%d\n", target_ip, target_port);
     
     sleep(2);
 
-    // 3. Zamknięcie połączenia: Wysłanie FIN
+    // 3. Close connection: Send FIN
     send_tcp_packet(sockfd, &target, source_port, target_port, seq + 1, seq + 1, TH_FIN | TH_ACK);
-    printf("Wysłano FIN do %s:%d\n", target_ip, target_port);
+    printf("Sent FIN to %s:%d\n", target_ip, target_port);
 
     sleep(1);
 

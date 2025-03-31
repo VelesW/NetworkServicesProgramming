@@ -67,12 +67,15 @@ int main(int argc, char** argv) {
         retval = setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &socket_option, sizeof(int));
         if (retval == -1) {
             perror("setsockopt()");
+            close(sockfd);
+            freeaddrinfo(result);
             exit(EXIT_FAILURE);
         }
         break;
     }
     if (rp == NULL) {
         fprintf(stderr, "Failed to create socket.\n");
+        freeaddrinfo(result);
         exit(EXIT_FAILURE);
     }
 
@@ -104,7 +107,7 @@ int main(int argc, char** argv) {
     fprintf(stdout, "Sending UDP packet...\n");
     print_hex(datagram, ip_header->ip_len);
 
-    for (;;) {
+    while (1) {
         retval = sendto(sockfd, datagram, ip_header->ip_len, 0, rp->ai_addr, rp->ai_addrlen);
         if (retval == -1) {
             perror("sendto()");
@@ -112,5 +115,7 @@ int main(int argc, char** argv) {
         sleep(1);
     }
 
-    exit(EXIT_SUCCESS);
+    freeaddrinfo(result);
+    close(sockfd);
+    return EXIT_SUCCESS;
 }

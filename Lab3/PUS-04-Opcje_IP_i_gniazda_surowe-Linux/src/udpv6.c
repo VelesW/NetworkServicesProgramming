@@ -16,23 +16,15 @@ int main(int argc, char **argv) {
 
     int sockfd;
     struct sockaddr_in6 dest_addr;
-    int checksum_offset = 6;
 
-    /* Tworzenie surowego gniazda IPv6 */
+    // Create a UDP socket
     sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
     if (sockfd < 0) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
 
-    /* Ustawienie opcji IPV6_CHECKSUM */
-    if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_CHECKSUM, &checksum_offset, sizeof(checksum_offset)) < 0) {
-        perror("setsockopt()");
-        close(sockfd);
-        exit(EXIT_FAILURE);
-    }
-
-    /* Wypełnienie struktury adresu docelowego */
+    // Fill in the destination address structure
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin6_family = AF_INET6;
     dest_addr.sin6_port = htons(atoi(argv[2]));
@@ -42,10 +34,10 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stdout, "Sending UDPv6 packets...\n");
+    fprintf(stdout, "Sending UDPv6 packets to %s:%s...\n", argv[1], argv[2]);
 
-    /* Wysyłanie pustych datagramów UDP co sekundę */
-    for (;;) {
+    // Send empty UDP datagrams every second
+    while (1) {
         if (sendto(sockfd, NULL, 0, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
             perror("sendto()");
         }
