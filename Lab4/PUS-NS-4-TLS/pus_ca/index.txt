@@ -1,0 +1,2 @@
+V	260407151048Z		01	unknown	/C=PL/ST=Malopolska/O=PK/OU=WIiT/CN=Server
+V	260407151057Z		02	unknown	/C=PL/ST=Malopolska/O=PK/OU=WIiT/CN=Client

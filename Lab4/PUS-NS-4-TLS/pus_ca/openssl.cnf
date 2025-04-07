@@ -1,0 +1,112 @@
+HOME                    = .
+RANDFILE                = $ENV::HOME/.rnd
+
+[ ca ]
+default_ca                      = pus_ca
+
+[ pus_ca ]
+dir                             = .
+
+# openssl ca -cert:
+certificate                     = $dir/ca_cert.pem
+
+# Plik musi istniec: (wymagane)
+database                        = $dir/index.txt
+
+# openssl ca -outdir:
+new_certs_dir                   = $dir/certs
+
+# openssl ca -keyfile:
+private_key                     = $dir/private/ca_keypair.pem
+
+# Plik zawierajacy kolejny numer seryjny (hex).
+# Plik musi istniec:
+serial                          = $dir/serial
+
+# openssl ca -days:
+default_days                    = 365
+
+# openssl ca -md:
+default_md                      = sha256
+
+# openssl ca -policy: (wymagane)
+policy                          = pus_policy
+
+# openssl ca -extensions
+x509_extensions                 = usr_cert
+
+[ pus_policy ]
+countryName                     = match
+stateOrProvinceName             = match
+organizationName                = match
+organizationalUnitName          = optional
+commonName                      = supplied
+emailAddress                    = optional
+
+[ req ]
+default_bits                    = 2048
+default_md                      = sha256
+
+# Nazwa sekcji DN:
+distinguished_name              = req_distinguished_name
+
+# Ignorowane przez OpenSSL:
+attributes                      = req_attributes
+
+# openssl req -x509 -extensions:
+x509_extensions                 = v3_ca
+
+# openssl req -reqexts:
+#req_extensions                  =
+
+[ req_distinguished_name ]
+countryName                     = Country Name (2 letter code)
+countryName_default             = PL
+countryName_min                 = 2
+countryName_max                 = 2
+
+stateOrProvinceName             = State or Province Name (full name)
+stateOrProvinceName_default     = Malopolska
+
+localityName                    = Locality Name (eg, city)
+localityName_default		= Krakow
+
+0.organizationName              = Organization Name (eg, company)
+0.organizationName_default      = PK
+
+organizationalUnitName          = Organizational Unit Name (eg, section)
+organizationalUnitName_default  = WIiT
+
+commonName                      = Common Name (eg, YOUR name)
+commonName_max                  = 64
+
+emailAddress                    = Email Address
+emailAddress_max                = 64
+
+# SET-ex3                       = SET extension number 3
+
+[ req_attributes ]
+challengePassword               = A challenge password
+challengePassword_min           = 4
+challengePassword_max           = 20
+
+unstructuredName                = An optional company name
+
+[ v3_ca ]
+subjectKeyIdentifier            = hash
+authorityKeyIdentifier          = keyid:always,issuer:always
+basicConstraints                = CA:true
+
+[ usr_cert ]
+basicConstraints                = CA:false
+subjectKeyIdentifier            = hash
+authorityKeyIdentifier          = keyid,issuer
+
+[ server_cert ]
+basicConstraints                = CA:false
+subjectKeyIdentifier            = hash
+authorityKeyIdentifier          = keyid,issuer
+nsCertType                      = server
+# Mozna inne nazwy DNS po przecinku:
+subjectAltName                  = DNS:localhost
+
